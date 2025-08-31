@@ -1,21 +1,41 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Save, X, Calendar, Clock, User, Settings, Layers, Droplets, Shirt, Target, BarChart3, AlertTriangle, Award, Wrench, Thermometer, Beaker, Gauge, Package, Scissors, BedDouble as Needle, Palette } from 'lucide-react';
+import { 
+  Save, 
+  X, 
+  Clock, 
+  User, 
+  Settings as SettingsIcon, 
+  Layers, 
+  Droplets, 
+  Shirt,
+  Calendar,
+  Timer,
+  Target,
+  TrendingUp,
+  AlertTriangle,
+  Award,
+  Wrench,
+  Thermometer,
+  Beaker,
+  Zap,
+  Droplet,
+  Recycle
+} from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
-import { TypedMemoryInput } from './TypedMemoryInput';
 import { 
   ProductionEntry, 
   KnittingProductionEntry, 
   DyeingProductionEntry, 
   GarmentsProductionEntry,
   SHIFTS,
+  QUALITY_GRADES,
   FABRIC_TYPES,
   DYE_TYPES,
   YARN_TYPES,
   GARMENT_STYLES,
   GARMENT_SIZES,
-  QUALITY_GRADES,
   initialKnittingEntry,
   initialDyeingEntry,
   initialGarmentsEntry
@@ -26,7 +46,7 @@ interface ProductionDataEntryProps {
   productionType: 'knitting' | 'dyeing' | 'garments';
   onSave: (entry: Omit<ProductionEntry, 'id' | 'userId' | 'timestamp'>) => void;
   editingEntry?: ProductionEntry | null;
-  onCancel: () => void;
+  onCancel?: () => void;
 }
 
 export const ProductionDataEntry: React.FC<ProductionDataEntryProps> = ({
@@ -71,33 +91,30 @@ export const ProductionDataEntry: React.FC<ProductionDataEntryProps> = ({
     setFormData((prev: any) => {
       const newData = { ...prev, [field]: value };
       
-      // Auto-calculate efficiency for knitting and garments
-      if (productionType === 'knitting' && (field === 'actualProduction' || field === 'targetProduction')) {
-        const actual = field === 'actualProduction' ? Number(value) : newData.actualProduction;
-        const target = field === 'targetProduction' ? Number(value) : newData.targetProduction;
-        if (target > 0) {
-          newData.efficiency = Math.round((actual / target) * 100);
-        }
-      }
-      
-      if (productionType === 'garments' && (field === 'completedQuantity' || field === 'targetQuantity')) {
-        const completed = field === 'completedQuantity' ? Number(value) : newData.completedQuantity;
-        const target = field === 'targetQuantity' ? Number(value) : newData.targetQuantity;
-        if (target > 0) {
-          newData.efficiency = Math.round((completed / target) * 100);
-        }
-      }
-      
-      // Auto-calculate total hours
+      // Auto-calculate total hours when start/end time changes
       if (field === 'startTime' || field === 'endTime') {
-        const start = field === 'startTime' ? value : newData.startTime;
-        const end = field === 'endTime' ? value : newData.endTime;
-        if (start && end) {
-          const startTime = new Date(`2000-01-01T${start}`);
-          const endTime = new Date(`2000-01-01T${end}`);
-          if (endTime > startTime) {
-            newData.totalHours = Math.round(((endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60)) * 10) / 10;
+        if (newData.startTime && newData.endTime) {
+          const start = new Date(`2000-01-01T${newData.startTime}`);
+          const end = new Date(`2000-01-01T${newData.endTime}`);
+          let diff = (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+          
+          // Handle overnight shifts
+          if (diff < 0) {
+            diff += 24;
           }
+          
+          newData.totalHours = Math.round(diff * 100) / 100;
+        }
+      }
+      
+      // Auto-calculate efficiency for knitting and garments
+      if (productionType === 'knitting' && (field === 'targetProduction' || field === 'actualProduction')) {
+        if (newData.targetProduction > 0 && newData.actualProduction >= 0) {
+          newData.efficiency = Math.round((newData.actualProduction / newData.targetProduction) * 100);
+        }
+      } else if (productionType === 'garments' && (field === 'targetQuantity' || field === 'completedQuantity')) {
+        if (newData.targetQuantity > 0 && newData.completedQuantity >= 0) {
+          newData.efficiency = Math.round((newData.completedQuantity / newData.targetQuantity) * 100);
         }
       }
       
@@ -110,42 +127,12 @@ export const ProductionDataEntry: React.FC<ProductionDataEntryProps> = ({
     }
   };
 
-  const handleDefectChange = (defectType: string, value: number) => {
+  const handleNestedInputChange = (parentField: string, childField: string, value: number) => {
     setFormData((prev: any) => ({
       ...prev,
-      defects: {
-        ...prev.defects,
-        [defectType]: value
-      }
-    }));
-  };
-
-  const handleOperationChange = (operation: string, value: number) => {
-    setFormData((prev: any) => ({
-      ...prev,
-      operations: {
-        ...prev.operations,
-        [operation]: value
-      }
-    }));
-  };
-
-  const handleChemicalConsumptionChange = (chemical: string, value: number) => {
-    setFormData((prev: any) => ({
-      ...prev,
-      chemicalConsumption: {
-        ...prev.chemicalConsumption,
-        [chemical]: value
-      }
-    }));
-  };
-
-  const handleQualityResultChange = (aspect: string, value: string) => {
-    setFormData((prev: any) => ({
-      ...prev,
-      qualityResults: {
-        ...prev.qualityResults,
-        [aspect]: value
+      [parentField]: {
+        ...prev[parentField],
+        [childField]: value
       }
     }));
   };
@@ -155,53 +142,53 @@ export const ProductionDataEntry: React.FC<ProductionDataEntryProps> = ({
     
     // Common validations
     if (!formData.date) newErrors.date = 'Date is required';
+    if (!formData.shift) newErrors.shift = 'Shift is required';
     if (!formData.operator?.trim()) newErrors.operator = 'Operator name is required';
     if (!formData.supervisor?.trim()) newErrors.supervisor = 'Supervisor name is required';
     if (!formData.machineNo?.trim()) newErrors.machineNo = 'Machine number is required';
     if (!formData.startTime) newErrors.startTime = 'Start time is required';
     if (!formData.endTime) newErrors.endTime = 'End time is required';
+    if (!formData.qualityGrade) newErrors.qualityGrade = 'Quality grade is required';
     
     // Type-specific validations
     if (productionType === 'knitting') {
       if (!formData.fabricType?.trim()) newErrors.fabricType = 'Fabric type is required';
       if (!formData.yarnType?.trim()) newErrors.yarnType = 'Yarn type is required';
       if (formData.targetProduction <= 0) newErrors.targetProduction = 'Target production must be greater than 0';
-    }
-    
-    if (productionType === 'dyeing') {
+      if (formData.actualProduction < 0) newErrors.actualProduction = 'Actual production cannot be negative';
+    } else if (productionType === 'dyeing') {
       if (!formData.fabricType?.trim()) newErrors.fabricType = 'Fabric type is required';
       if (!formData.color?.trim()) newErrors.color = 'Color is required';
       if (!formData.dyeType?.trim()) newErrors.dyeType = 'Dye type is required';
       if (formData.batchWeight <= 0) newErrors.batchWeight = 'Batch weight must be greater than 0';
-    }
-    
-    if (productionType === 'garments') {
+    } else if (productionType === 'garments') {
       if (!formData.style?.trim()) newErrors.style = 'Style is required';
       if (!formData.size?.trim()) newErrors.size = 'Size is required';
       if (!formData.color?.trim()) newErrors.color = 'Color is required';
       if (formData.targetQuantity <= 0) newErrors.targetQuantity = 'Target quantity must be greater than 0';
+      if (formData.completedQuantity < 0) newErrors.completedQuantity = 'Completed quantity cannot be negative';
     }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
     if (validateForm()) {
       onSave(formData);
     }
   };
 
-  const inputClasses = "w-full rounded-xl border border-border shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/20 bg-background text-foreground py-3 px-4 transition-all duration-200 hover:border-primary/50";
-  const labelClasses = "block text-sm font-semibold text-foreground mb-2";
+  const inputClasses = "w-full rounded-lg border border-border shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/20 bg-background text-foreground py-2 px-3 transition-all duration-200";
+  const labelClasses = "block text-sm font-medium text-foreground mb-1";
   const errorClasses = "text-red-500 text-xs mt-1";
-  const sectionClasses = "bg-card p-8 rounded-2xl border border-border shadow-lg";
-  const sectionHeaderClasses = "flex items-center gap-3 mb-6 pb-4 border-b border-border";
+  const selectTriggerClasses = "flex items-center justify-between w-full rounded-lg border border-border shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/20 bg-background text-foreground py-2 px-3";
 
   const SelectItemContent = ({ children, value }: { children: React.ReactNode; value: string }) => (
     <Select.Item
       value={value}
-      className="relative flex items-center rounded-lg py-3 pl-4 pr-12 text-foreground text-sm outline-none data-[highlighted]:bg-primary/20 transition-colors cursor-pointer"
+      className="relative flex items-center rounded-md py-2 pl-3 pr-9 text-foreground text-sm outline-none data-[highlighted]:bg-primary/20"
     >
       <Select.ItemText>{children}</Select.ItemText>
     </Select.Item>
@@ -209,9 +196,9 @@ export const ProductionDataEntry: React.FC<ProductionDataEntryProps> = ({
 
   const getProductionIcon = () => {
     switch (productionType) {
-      case 'knitting': return <Layers className="h-8 w-8 text-white" />;
-      case 'dyeing': return <Droplets className="h-8 w-8 text-white" />;
-      case 'garments': return <Shirt className="h-8 w-8 text-white" />;
+      case 'knitting': return <Layers className="h-6 w-6 text-white" />;
+      case 'dyeing': return <Droplets className="h-6 w-6 text-white" />;
+      case 'garments': return <Shirt className="h-6 w-6 text-white" />;
     }
   };
 
@@ -224,245 +211,210 @@ export const ProductionDataEntry: React.FC<ProductionDataEntryProps> = ({
   };
 
   return (
-    <div className="space-y-8">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-card p-8 rounded-2xl border border-border shadow-lg"
+    >
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-gradient-to-r from-primary/10 to-secondary/10 p-8 rounded-2xl border border-border/50"
-      >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <div className={`p-4 bg-gradient-to-br ${getProductionColor()} rounded-2xl shadow-lg`}>
-              {getProductionIcon()}
-            </div>
-            <div>
-              <h2 className="text-3xl font-bold text-foreground capitalize">
-                {productionType} Production Entry
-              </h2>
-              <p className="text-muted-foreground text-lg mt-1">
-                {editingEntry ? 'Edit existing production data' : 'Record new production data for today'}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              onClick={onCancel}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <X className="h-4 w-4" />
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-2"
-            >
-              <Save className="h-4 w-4" />
-              Save Entry
-            </Button>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Basic Information Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className={sectionClasses}
-      >
-        <div className={sectionHeaderClasses}>
-          <div className="p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl">
-            <Calendar className="h-6 w-6 text-white" />
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center gap-4">
+          <div className={`p-4 bg-gradient-to-br ${getProductionColor()} rounded-xl`}>
+            {getProductionIcon()}
           </div>
           <div>
-            <h3 className="text-xl font-bold text-foreground">Basic Information</h3>
-            <p className="text-muted-foreground">General production details and timing</p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div>
-            <label className={labelClasses}>
-              <Calendar className="inline h-4 w-4 mr-2" />
-              Production Date *
-            </label>
-            <input
-              type="date"
-              value={formData.date}
-              onChange={(e) => handleInputChange('date', e.target.value)}
-              className={inputClasses}
-            />
-            {errors.date && <p className={errorClasses}>{errors.date}</p>}
-          </div>
-
-          <div>
-            <label className={labelClasses}>
-              <Clock className="inline h-4 w-4 mr-2" />
-              Shift *
-            </label>
-            <Select.Root value={formData.shift} onValueChange={(value) => handleInputChange('shift', value)}>
-              <Select.Trigger className={inputClasses}>
-                <Select.Value placeholder="Select Shift" />
-                <Select.Icon>
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </Select.Icon>
-              </Select.Trigger>
-              <Select.Portal>
-                <Select.Content className="overflow-hidden rounded-xl bg-card border border-border shadow-2xl z-50">
-                  <Select.Viewport className="p-2">
-                    {SHIFTS.map(shift => (
-                      <SelectItemContent key={shift.value} value={shift.value}>
-                        {shift.label}
-                      </SelectItemContent>
-                    ))}
-                  </Select.Viewport>
-                </Select.Content>
-              </Select.Portal>
-            </Select.Root>
-            {errors.shift && <p className={errorClasses}>{errors.shift}</p>}
-          </div>
-
-          <div>
-            <label className={labelClasses}>
-              <Clock className="inline h-4 w-4 mr-2" />
-              Start Time *
-            </label>
-            <input
-              type="time"
-              value={formData.startTime}
-              onChange={(e) => handleInputChange('startTime', e.target.value)}
-              className={inputClasses}
-            />
-            {errors.startTime && <p className={errorClasses}>{errors.startTime}</p>}
-          </div>
-
-          <div>
-            <label className={labelClasses}>
-              <Clock className="inline h-4 w-4 mr-2" />
-              End Time *
-            </label>
-            <input
-              type="time"
-              value={formData.endTime}
-              onChange={(e) => handleInputChange('endTime', e.target.value)}
-              className={inputClasses}
-            />
-            {errors.endTime && <p className={errorClasses}>{errors.endTime}</p>}
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
-          <div>
-            <label className={labelClasses}>
-              <User className="inline h-4 w-4 mr-2" />
-              Operator *
-            </label>
-            <TypedMemoryInput
-              value={formData.operator}
-              onChange={(e) => handleInputChange('operator', e.target.value)}
-              className={inputClasses}
-              storageKey={`${productionType}Operator`}
-              placeholder="Operator name"
-            />
-            {errors.operator && <p className={errorClasses}>{errors.operator}</p>}
-          </div>
-
-          <div>
-            <label className={labelClasses}>
-              <User className="inline h-4 w-4 mr-2" />
-              Supervisor *
-            </label>
-            <TypedMemoryInput
-              value={formData.supervisor}
-              onChange={(e) => handleInputChange('supervisor', e.target.value)}
-              className={inputClasses}
-              storageKey={`${productionType}Supervisor`}
-              placeholder="Supervisor name"
-            />
-            {errors.supervisor && <p className={errorClasses}>{errors.supervisor}</p>}
-          </div>
-
-          <div>
-            <label className={labelClasses}>
-              <Wrench className="inline h-4 w-4 mr-2" />
-              Machine No *
-            </label>
-            <TypedMemoryInput
-              value={formData.machineNo}
-              onChange={(e) => handleInputChange('machineNo', e.target.value)}
-              className={inputClasses}
-              storageKey={`${productionType}MachineNo`}
-              placeholder="Machine number"
-            />
-            {errors.machineNo && <p className={errorClasses}>{errors.machineNo}</p>}
-          </div>
-        </div>
-
-        {/* Total Hours Display */}
-        {formData.totalHours > 0 && (
-          <div className="mt-6 p-4 bg-gradient-to-r from-green-500/10 to-blue-500/10 rounded-xl border border-border/50">
-            <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-primary" />
-              <span className="font-semibold text-foreground">Total Working Hours: </span>
-              <span className="text-xl font-bold text-primary">{formData.totalHours}h</span>
-            </div>
-          </div>
-        )}
-      </motion.div>
-
-      {/* Production Specific Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-        className={sectionClasses}
-      >
-        <div className={sectionHeaderClasses}>
-          <div className={`p-3 bg-gradient-to-br ${getProductionColor()} rounded-xl`}>
-            {productionType === 'knitting' && <Layers className="h-6 w-6 text-white" />}
-            {productionType === 'dyeing' && <Beaker className="h-6 w-6 text-white" />}
-            {productionType === 'garments' && <Scissors className="h-6 w-6 text-white" />}
-          </div>
-          <div>
-            <h3 className="text-xl font-bold text-foreground capitalize">
-              {productionType} Production Details
-            </h3>
+            <h2 className="text-2xl font-bold text-foreground capitalize">
+              {editingEntry ? 'Edit' : 'Add'} {productionType} Production Entry
+            </h2>
             <p className="text-muted-foreground">
-              {productionType === 'knitting' && 'Fabric production specifications and targets'}
-              {productionType === 'dyeing' && 'Dyeing process parameters and quality metrics'}
-              {productionType === 'garments' && 'Garment production details and operations'}
+              Record daily production data for {productionType} operations
             </p>
           </div>
         </div>
+        {onCancel && (
+          <Button variant="outline" onClick={onCancel}>
+            <X className="h-4 w-4 mr-2" />
+            Cancel
+          </Button>
+        )}
+      </div>
 
-        {/* Knitting Specific Fields */}
-        {productionType === 'knitting' && (
-          <div className="space-y-6">
-            {/* Material & Specifications */}
+      <form onSubmit={handleSubmit} className="space-y-8">
+        {/* Section 1: Basic Information */}
+        <div className="bg-muted/20 p-6 rounded-xl border border-border/50">
+          <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center">
+            <Calendar className="h-5 w-5 mr-2 text-primary" />
+            Basic Information
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
-              <h4 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                <Package className="h-5 w-5 mr-2 text-primary" />
-                Material & Specifications
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <label className={labelClasses}>
+                <Calendar className="inline h-4 w-4 mr-1" />
+                Date *
+              </label>
+              <input
+                type="date"
+                value={formData.date}
+                onChange={(e) => handleInputChange('date', e.target.value)}
+                className={inputClasses}
+              />
+              {errors.date && <p className={errorClasses}>{errors.date}</p>}
+            </div>
+
+            <div>
+              <label className={labelClasses}>
+                <Clock className="inline h-4 w-4 mr-1" />
+                Shift *
+              </label>
+              <Select.Root value={formData.shift} onValueChange={(value) => handleInputChange('shift', value)}>
+                <Select.Trigger className={selectTriggerClasses}>
+                  <Select.Value placeholder="Select Shift" />
+                  <Select.Icon>
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </Select.Icon>
+                </Select.Trigger>
+                <Select.Portal>
+                  <Select.Content className="overflow-hidden rounded-lg bg-card border border-border shadow-lg z-50">
+                    <Select.Viewport className="p-1">
+                      {SHIFTS.map(shift => (
+                        <SelectItemContent key={shift.value} value={shift.value}>
+                          {shift.label}
+                        </SelectItemContent>
+                      ))}
+                    </Select.Viewport>
+                  </Select.Content>
+                </Select.Portal>
+              </Select.Root>
+              {errors.shift && <p className={errorClasses}>{errors.shift}</p>}
+            </div>
+
+            <div>
+              <label className={labelClasses}>
+                <User className="inline h-4 w-4 mr-1" />
+                Operator *
+              </label>
+              <Input
+                value={formData.operator}
+                onChange={(e) => handleInputChange('operator', e.target.value)}
+                placeholder="Operator name"
+                className={inputClasses}
+              />
+              {errors.operator && <p className={errorClasses}>{errors.operator}</p>}
+            </div>
+
+            <div>
+              <label className={labelClasses}>
+                <User className="inline h-4 w-4 mr-1" />
+                Supervisor *
+              </label>
+              <Input
+                value={formData.supervisor}
+                onChange={(e) => handleInputChange('supervisor', e.target.value)}
+                placeholder="Supervisor name"
+                className={inputClasses}
+              />
+              {errors.supervisor && <p className={errorClasses}>{errors.supervisor}</p>}
+            </div>
+          </div>
+        </div>
+
+        {/* Section 2: Machine & Timing */}
+        <div className="bg-muted/20 p-6 rounded-xl border border-border/50">
+          <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center">
+            <Wrench className="h-5 w-5 mr-2 text-primary" />
+            Machine & Timing
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+              <label className={labelClasses}>
+                <SettingsIcon className="inline h-4 w-4 mr-1" />
+                Machine No *
+              </label>
+              <Input
+                value={formData.machineNo}
+                onChange={(e) => handleInputChange('machineNo', e.target.value)}
+                placeholder="Machine number"
+                className={inputClasses}
+              />
+              {errors.machineNo && <p className={errorClasses}>{errors.machineNo}</p>}
+            </div>
+
+            <div>
+              <label className={labelClasses}>
+                <Timer className="inline h-4 w-4 mr-1" />
+                Start Time *
+              </label>
+              <input
+                type="time"
+                value={formData.startTime}
+                onChange={(e) => handleInputChange('startTime', e.target.value)}
+                className={inputClasses}
+              />
+              {errors.startTime && <p className={errorClasses}>{errors.startTime}</p>}
+            </div>
+
+            <div>
+              <label className={labelClasses}>
+                <Timer className="inline h-4 w-4 mr-1" />
+                End Time *
+              </label>
+              <input
+                type="time"
+                value={formData.endTime}
+                onChange={(e) => handleInputChange('endTime', e.target.value)}
+                className={inputClasses}
+              />
+              {errors.endTime && <p className={errorClasses}>{errors.endTime}</p>}
+            </div>
+
+            <div>
+              <label className={labelClasses}>
+                <Clock className="inline h-4 w-4 mr-1" />
+                Total Hours
+              </label>
+              <Input
+                type="number"
+                value={formData.totalHours}
+                onChange={(e) => handleInputChange('totalHours', parseFloat(e.target.value) || 0)}
+                placeholder="0.0"
+                step="0.1"
+                min="0"
+                className={inputClasses}
+                readOnly
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Section 3: Production Specifics */}
+        <div className="bg-muted/20 p-6 rounded-xl border border-border/50">
+          <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center">
+            {productionType === 'knitting' && <Layers className="h-5 w-5 mr-2 text-primary" />}
+            {productionType === 'dyeing' && <Droplets className="h-5 w-5 mr-2 text-primary" />}
+            {productionType === 'garments' && <Shirt className="h-5 w-5 mr-2 text-primary" />}
+            Production Details
+          </h3>
+          
+          {productionType === 'knitting' && (
+            <div className="space-y-6">
+              {/* Row 1 */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className={labelClasses}>Fabric Type *</label>
                   <Select.Root value={formData.fabricType} onValueChange={(value) => handleInputChange('fabricType', value)}>
-                    <Select.Trigger className={inputClasses}>
-                      <Select.Value placeholder="Select Fabric Type" />
+                    <Select.Trigger className={selectTriggerClasses}>
+                      <Select.Value placeholder="Select Fabric" />
                       <Select.Icon>
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                         </svg>
                       </Select.Icon>
                     </Select.Trigger>
                     <Select.Portal>
-                      <Select.Content className="overflow-hidden rounded-xl bg-card border border-border shadow-2xl z-50">
-                        <Select.Viewport className="p-2 max-h-48 overflow-y-auto">
+                      <Select.Content className="overflow-hidden rounded-lg bg-card border border-border shadow-lg z-50">
+                        <Select.Viewport className="p-1 max-h-48 overflow-y-auto">
                           {FABRIC_TYPES.map(fabric => (
                             <SelectItemContent key={fabric} value={fabric}>{fabric}</SelectItemContent>
                           ))}
@@ -476,17 +428,17 @@ export const ProductionDataEntry: React.FC<ProductionDataEntryProps> = ({
                 <div>
                   <label className={labelClasses}>Yarn Type *</label>
                   <Select.Root value={formData.yarnType} onValueChange={(value) => handleInputChange('yarnType', value)}>
-                    <Select.Trigger className={inputClasses}>
-                      <Select.Value placeholder="Select Yarn Type" />
+                    <Select.Trigger className={selectTriggerClasses}>
+                      <Select.Value placeholder="Select Yarn" />
                       <Select.Icon>
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                         </svg>
                       </Select.Icon>
                     </Select.Trigger>
                     <Select.Portal>
-                      <Select.Content className="overflow-hidden rounded-xl bg-card border border-border shadow-2xl z-50">
-                        <Select.Viewport className="p-2 max-h-48 overflow-y-auto">
+                      <Select.Content className="overflow-hidden rounded-lg bg-card border border-border shadow-lg z-50">
+                        <Select.Viewport className="p-1 max-h-48 overflow-y-auto">
                           {YARN_TYPES.map(yarn => (
                             <SelectItemContent key={yarn} value={yarn}>{yarn}</SelectItemContent>
                           ))}
@@ -498,229 +450,97 @@ export const ProductionDataEntry: React.FC<ProductionDataEntryProps> = ({
                 </div>
 
                 <div>
-                  <label className={labelClasses}>
-                    <Package className="inline h-4 w-4 mr-2" />
-                    Yarn Lot
-                  </label>
-                  <TypedMemoryInput
+                  <label className={labelClasses}>Yarn Lot</label>
+                  <Input
                     value={formData.yarnLot}
                     onChange={(e) => handleInputChange('yarnLot', e.target.value)}
-                    className={inputClasses}
-                    storageKey="knittingYarnLot"
                     placeholder="Yarn lot number"
+                    className={inputClasses}
                   />
                 </div>
 
                 <div>
-                  <label className={labelClasses}>
-                    <Gauge className="inline h-4 w-4 mr-2" />
-                    Gauge
-                  </label>
-                  <TypedMemoryInput
+                  <label className={labelClasses}>Gauge</label>
+                  <Input
                     value={formData.gauge}
                     onChange={(e) => handleInputChange('gauge', e.target.value)}
-                    className={inputClasses}
-                    storageKey="knittingGauge"
                     placeholder="e.g., 28GG"
+                    className={inputClasses}
                   />
                 </div>
               </div>
-            </div>
 
-            {/* Technical Parameters */}
-            <div>
-              <h4 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                <Settings className="h-5 w-5 mr-2 text-primary" />
-                Technical Parameters
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Row 2 */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className={labelClasses}>GSM</label>
-                  <input
+                  <Input
                     type="number"
-                    value={formData.gsm || ''}
+                    value={formData.gsm}
                     onChange={(e) => handleInputChange('gsm', parseFloat(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Grams per square meter"
+                    placeholder="0"
                     min="0"
-                    step="any"
+                    className={inputClasses}
                   />
                 </div>
 
                 <div>
                   <label className={labelClasses}>Width (cm)</label>
-                  <input
+                  <Input
                     type="number"
-                    value={formData.width || ''}
+                    value={formData.width}
                     onChange={(e) => handleInputChange('width', parseFloat(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Fabric width"
+                    placeholder="0"
                     min="0"
-                    step="any"
+                    className={inputClasses}
                   />
                 </div>
 
                 <div>
                   <label className={labelClasses}>RPM</label>
-                  <input
+                  <Input
                     type="number"
-                    value={formData.rpm || ''}
+                    value={formData.rpm}
                     onChange={(e) => handleInputChange('rpm', parseFloat(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Revolutions per minute"
+                    placeholder="0"
                     min="0"
+                    className={inputClasses}
                   />
                 </div>
 
                 <div>
-                  <label className={labelClasses}>
-                    <Needle className="inline h-4 w-4 mr-2" />
-                    Needle Breaks
-                  </label>
-                  <input
+                  <label className={labelClasses}>Needle Breaks</label>
+                  <Input
                     type="number"
-                    value={formData.needleBreaks || ''}
-                    onChange={(e) => handleInputChange('needleBreaks', parseInt(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Number of breaks"
+                    value={formData.needleBreaks}
+                    onChange={(e) => handleInputChange('needleBreaks', parseFloat(e.target.value) || 0)}
+                    placeholder="0"
                     min="0"
+                    className={inputClasses}
                   />
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Production Targets */}
-            <div>
-              <h4 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                <Target className="h-5 w-5 mr-2 text-primary" />
-                Production Targets & Results
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <label className={labelClasses}>Target Production (kg) *</label>
-                  <input
-                    type="number"
-                    value={formData.targetProduction || ''}
-                    onChange={(e) => handleInputChange('targetProduction', parseFloat(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Target production"
-                    min="0"
-                    step="any"
-                  />
-                  {errors.targetProduction && <p className={errorClasses}>{errors.targetProduction}</p>}
-                </div>
-
-                <div>
-                  <label className={labelClasses}>Actual Production (kg)</label>
-                  <input
-                    type="number"
-                    value={formData.actualProduction || ''}
-                    onChange={(e) => handleInputChange('actualProduction', parseFloat(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Actual production"
-                    min="0"
-                    step="any"
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClasses}>
-                    <BarChart3 className="inline h-4 w-4 mr-2" />
-                    Efficiency (%)
-                  </label>
-                  <input
-                    type="text"
-                    value={`${formData.efficiency || 0}%`}
-                    readOnly
-                    className={`${inputClasses} bg-muted/30 font-bold text-primary`}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Defects Tracking */}
-            <div>
-              <h4 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                <AlertTriangle className="h-5 w-5 mr-2 text-orange-500" />
-                Defects Tracking
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className={labelClasses}>Holes</label>
-                  <input
-                    type="number"
-                    value={formData.defects?.holes || ''}
-                    onChange={(e) => handleDefectChange('holes', parseInt(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Number of holes"
-                    min="0"
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClasses}>Drop Stitches</label>
-                  <input
-                    type="number"
-                    value={formData.defects?.dropStitches || ''}
-                    onChange={(e) => handleDefectChange('dropStitches', parseInt(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Drop stitches count"
-                    min="0"
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClasses}>Yarn Breaks</label>
-                  <input
-                    type="number"
-                    value={formData.defects?.yarnBreaks || ''}
-                    onChange={(e) => handleDefectChange('yarnBreaks', parseInt(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Yarn breaks count"
-                    min="0"
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClasses}>Other Defects</label>
-                  <input
-                    type="number"
-                    value={formData.defects?.other || ''}
-                    onChange={(e) => handleDefectChange('other', parseInt(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Other defects"
-                    min="0"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Dyeing Specific Fields */}
-        {productionType === 'dyeing' && (
-          <div className="space-y-6">
-            {/* Material & Color */}
-            <div>
-              <h4 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                <Palette className="h-5 w-5 mr-2 text-primary" />
-                Material & Color Information
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {productionType === 'dyeing' && (
+            <div className="space-y-6">
+              {/* Row 1 */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className={labelClasses}>Fabric Type *</label>
                   <Select.Root value={formData.fabricType} onValueChange={(value) => handleInputChange('fabricType', value)}>
-                    <Select.Trigger className={inputClasses}>
-                      <Select.Value placeholder="Select Fabric Type" />
+                    <Select.Trigger className={selectTriggerClasses}>
+                      <Select.Value placeholder="Select Fabric" />
                       <Select.Icon>
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                         </svg>
                       </Select.Icon>
                     </Select.Trigger>
                     <Select.Portal>
-                      <Select.Content className="overflow-hidden rounded-xl bg-card border border-border shadow-2xl z-50">
-                        <Select.Viewport className="p-2 max-h-48 overflow-y-auto">
+                      <Select.Content className="overflow-hidden rounded-lg bg-card border border-border shadow-lg z-50">
+                        <Select.Viewport className="p-1 max-h-48 overflow-y-auto">
                           {FABRIC_TYPES.map(fabric => (
                             <SelectItemContent key={fabric} value={fabric}>{fabric}</SelectItemContent>
                           ))}
@@ -733,12 +553,11 @@ export const ProductionDataEntry: React.FC<ProductionDataEntryProps> = ({
 
                 <div>
                   <label className={labelClasses}>Color *</label>
-                  <TypedMemoryInput
+                  <Input
                     value={formData.color}
                     onChange={(e) => handleInputChange('color', e.target.value)}
-                    className={inputClasses}
-                    storageKey="dyeingColor"
                     placeholder="Color name"
+                    className={inputClasses}
                   />
                   {errors.color && <p className={errorClasses}>{errors.color}</p>}
                 </div>
@@ -746,17 +565,17 @@ export const ProductionDataEntry: React.FC<ProductionDataEntryProps> = ({
                 <div>
                   <label className={labelClasses}>Dye Type *</label>
                   <Select.Root value={formData.dyeType} onValueChange={(value) => handleInputChange('dyeType', value)}>
-                    <Select.Trigger className={inputClasses}>
+                    <Select.Trigger className={selectTriggerClasses}>
                       <Select.Value placeholder="Select Dye Type" />
                       <Select.Icon>
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                         </svg>
                       </Select.Icon>
                     </Select.Trigger>
                     <Select.Portal>
-                      <Select.Content className="overflow-hidden rounded-xl bg-card border border-border shadow-2xl z-50">
-                        <Select.Viewport className="p-2">
+                      <Select.Content className="overflow-hidden rounded-lg bg-card border border-border shadow-lg z-50">
+                        <Select.Viewport className="p-1">
                           {DYE_TYPES.map(dye => (
                             <SelectItemContent key={dye} value={dye}>{dye}</SelectItemContent>
                           ))}
@@ -766,288 +585,102 @@ export const ProductionDataEntry: React.FC<ProductionDataEntryProps> = ({
                   </Select.Root>
                   {errors.dyeType && <p className={errorClasses}>{errors.dyeType}</p>}
                 </div>
-              </div>
-            </div>
 
-            {/* Process Parameters */}
-            <div>
-              <h4 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                <Thermometer className="h-5 w-5 mr-2 text-primary" />
-                Process Parameters
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <label className={labelClasses}>Batch Weight (kg) *</label>
-                  <input
+                  <Input
                     type="number"
-                    value={formData.batchWeight || ''}
+                    value={formData.batchWeight}
                     onChange={(e) => handleInputChange('batchWeight', parseFloat(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Batch weight"
+                    placeholder="0"
                     min="0"
-                    step="any"
+                    step="0.01"
+                    className={inputClasses}
                   />
                   {errors.batchWeight && <p className={errorClasses}>{errors.batchWeight}</p>}
                 </div>
+              </div>
 
+              {/* Row 2 */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className={labelClasses}>Liquor Ratio</label>
-                  <input
+                  <Input
                     type="number"
-                    value={formData.liquorRatio || ''}
+                    value={formData.liquorRatio}
                     onChange={(e) => handleInputChange('liquorRatio', parseFloat(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="1:10"
+                    placeholder="0"
                     min="0"
-                    step="any"
+                    step="0.1"
+                    className={inputClasses}
                   />
                 </div>
 
                 <div>
-                  <label className={labelClasses}>Temperature (°C)</label>
-                  <input
+                  <label className={labelClasses}>
+                    <Thermometer className="inline h-4 w-4 mr-1" />
+                    Temperature (°C)
+                  </label>
+                  <Input
                     type="number"
-                    value={formData.temperature || ''}
+                    value={formData.temperature}
                     onChange={(e) => handleInputChange('temperature', parseFloat(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Temperature"
+                    placeholder="0"
                     min="0"
-                    step="any"
+                    className={inputClasses}
                   />
                 </div>
 
                 <div>
-                  <label className={labelClasses}>pH Level</label>
-                  <input
+                  <label className={labelClasses}>
+                    <Beaker className="inline h-4 w-4 mr-1" />
+                    pH Level
+                  </label>
+                  <Input
                     type="number"
-                    value={formData.pH || ''}
+                    value={formData.pH}
                     onChange={(e) => handleInputChange('pH', parseFloat(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="pH level"
+                    placeholder="0"
                     min="0"
                     max="14"
                     step="0.1"
+                    className={inputClasses}
+                  />
+                </div>
+
+                <div>
+                  <label className={labelClasses}>Process Time (min)</label>
+                  <Input
+                    type="number"
+                    value={formData.processTime}
+                    onChange={(e) => handleInputChange('processTime', parseFloat(e.target.value) || 0)}
+                    placeholder="0"
+                    min="0"
+                    className={inputClasses}
                   />
                 </div>
               </div>
             </div>
+          )}
 
-            {/* Chemical Consumption */}
-            <div>
-              <h4 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                <Beaker className="h-5 w-5 mr-2 text-primary" />
-                Chemical Consumption (kg)
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className={labelClasses}>Dyes</label>
-                  <input
-                    type="number"
-                    value={formData.chemicalConsumption?.dyes || ''}
-                    onChange={(e) => handleChemicalConsumptionChange('dyes', parseFloat(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Dyes used"
-                    min="0"
-                    step="any"
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClasses}>Salt</label>
-                  <input
-                    type="number"
-                    value={formData.chemicalConsumption?.salt || ''}
-                    onChange={(e) => handleChemicalConsumptionChange('salt', parseFloat(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Salt used"
-                    min="0"
-                    step="any"
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClasses}>Soda</label>
-                  <input
-                    type="number"
-                    value={formData.chemicalConsumption?.soda || ''}
-                    onChange={(e) => handleChemicalConsumptionChange('soda', parseFloat(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Soda used"
-                    min="0"
-                    step="any"
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClasses}>Auxiliaries</label>
-                  <input
-                    type="number"
-                    value={formData.chemicalConsumption?.auxiliaries || ''}
-                    onChange={(e) => handleChemicalConsumptionChange('auxiliaries', parseFloat(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Auxiliaries used"
-                    min="0"
-                    step="any"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Quality Assessment */}
-            <div>
-              <h4 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                <Award className="h-5 w-5 mr-2 text-primary" />
-                Quality Assessment
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className={labelClasses}>Color Match</label>
-                  <Select.Root value={formData.qualityResults?.colorMatch} onValueChange={(value) => handleQualityResultChange('colorMatch', value)}>
-                    <Select.Trigger className={inputClasses}>
-                      <Select.Value placeholder="Select Rating" />
-                      <Select.Icon>
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </Select.Icon>
-                    </Select.Trigger>
-                    <Select.Portal>
-                      <Select.Content className="overflow-hidden rounded-xl bg-card border border-border shadow-2xl z-50">
-                        <Select.Viewport className="p-2">
-                          <SelectItemContent value="excellent">Excellent</SelectItemContent>
-                          <SelectItemContent value="good">Good</SelectItemContent>
-                          <SelectItemContent value="acceptable">Acceptable</SelectItemContent>
-                          <SelectItemContent value="poor">Poor</SelectItemContent>
-                        </Select.Viewport>
-                      </Select.Content>
-                    </Select.Portal>
-                  </Select.Root>
-                </div>
-
-                <div>
-                  <label className={labelClasses}>Fastness</label>
-                  <Select.Root value={formData.qualityResults?.fastness} onValueChange={(value) => handleQualityResultChange('fastness', value)}>
-                    <Select.Trigger className={inputClasses}>
-                      <Select.Value placeholder="Select Rating" />
-                      <Select.Icon>
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </Select.Icon>
-                    </Select.Trigger>
-                    <Select.Portal>
-                      <Select.Content className="overflow-hidden rounded-xl bg-card border border-border shadow-2xl z-50">
-                        <Select.Viewport className="p-2">
-                          <SelectItemContent value="excellent">Excellent</SelectItemContent>
-                          <SelectItemContent value="good">Good</SelectItemContent>
-                          <SelectItemContent value="acceptable">Acceptable</SelectItemContent>
-                          <SelectItemContent value="poor">Poor</SelectItemContent>
-                        </Select.Viewport>
-                      </Select.Content>
-                    </Select.Portal>
-                  </Select.Root>
-                </div>
-
-                <div>
-                  <label className={labelClasses}>Uniformity</label>
-                  <Select.Root value={formData.qualityResults?.uniformity} onValueChange={(value) => handleQualityResultChange('uniformity', value)}>
-                    <Select.Trigger className={inputClasses}>
-                      <Select.Value placeholder="Select Rating" />
-                      <Select.Icon>
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                      </Select.Icon>
-                    </Select.Trigger>
-                    <Select.Portal>
-                      <Select.Content className="overflow-hidden rounded-xl bg-card border border-border shadow-2xl z-50">
-                        <Select.Viewport className="p-2">
-                          <SelectItemContent value="excellent">Excellent</SelectItemContent>
-                          <SelectItemContent value="good">Good</SelectItemContent>
-                          <SelectItemContent value="acceptable">Acceptable</SelectItemContent>
-                          <SelectItemContent value="poor">Poor</SelectItemContent>
-                        </Select.Viewport>
-                      </Select.Content>
-                    </Select.Portal>
-                  </Select.Root>
-                </div>
-              </div>
-            </div>
-
-            {/* Resource Consumption */}
-            <div>
-              <h4 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                <Droplets className="h-5 w-5 mr-2 text-primary" />
-                Resource Consumption
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className={labelClasses}>Water Consumption (L)</label>
-                  <input
-                    type="number"
-                    value={formData.waterConsumption || ''}
-                    onChange={(e) => handleInputChange('waterConsumption', parseFloat(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Water used"
-                    min="0"
-                    step="any"
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClasses}>Energy Consumption (kWh)</label>
-                  <input
-                    type="number"
-                    value={formData.energyConsumption || ''}
-                    onChange={(e) => handleInputChange('energyConsumption', parseFloat(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Energy used"
-                    min="0"
-                    step="any"
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClasses}>Waste Generated (kg)</label>
-                  <input
-                    type="number"
-                    value={formData.wasteGenerated || ''}
-                    onChange={(e) => handleInputChange('wasteGenerated', parseFloat(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Waste amount"
-                    min="0"
-                    step="any"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Garments Specific Fields */}
-        {productionType === 'garments' && (
-          <div className="space-y-6">
-            {/* Product Details */}
-            <div>
-              <h4 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                <Shirt className="h-5 w-5 mr-2 text-primary" />
-                Product Details
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {productionType === 'garments' && (
+            <div className="space-y-6">
+              {/* Row 1 */}
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
                   <label className={labelClasses}>Style *</label>
                   <Select.Root value={formData.style} onValueChange={(value) => handleInputChange('style', value)}>
-                    <Select.Trigger className={inputClasses}>
+                    <Select.Trigger className={selectTriggerClasses}>
                       <Select.Value placeholder="Select Style" />
                       <Select.Icon>
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                         </svg>
                       </Select.Icon>
                     </Select.Trigger>
                     <Select.Portal>
-                      <Select.Content className="overflow-hidden rounded-xl bg-card border border-border shadow-2xl z-50">
-                        <Select.Viewport className="p-2 max-h-48 overflow-y-auto">
+                      <Select.Content className="overflow-hidden rounded-lg bg-card border border-border shadow-lg z-50">
+                        <Select.Viewport className="p-1 max-h-48 overflow-y-auto">
                           {GARMENT_STYLES.map(style => (
                             <SelectItemContent key={style} value={style}>{style}</SelectItemContent>
                           ))}
@@ -1061,17 +694,17 @@ export const ProductionDataEntry: React.FC<ProductionDataEntryProps> = ({
                 <div>
                   <label className={labelClasses}>Size *</label>
                   <Select.Root value={formData.size} onValueChange={(value) => handleInputChange('size', value)}>
-                    <Select.Trigger className={inputClasses}>
+                    <Select.Trigger className={selectTriggerClasses}>
                       <Select.Value placeholder="Select Size" />
                       <Select.Icon>
-                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
                         </svg>
                       </Select.Icon>
                     </Select.Trigger>
                     <Select.Portal>
-                      <Select.Content className="overflow-hidden rounded-xl bg-card border border-border shadow-2xl z-50">
-                        <Select.Viewport className="p-2">
+                      <Select.Content className="overflow-hidden rounded-lg bg-card border border-border shadow-lg z-50">
+                        <Select.Viewport className="p-1">
                           {GARMENT_SIZES.map(size => (
                             <SelectItemContent key={size} value={size}>{size}</SelectItemContent>
                           ))}
@@ -1084,333 +717,709 @@ export const ProductionDataEntry: React.FC<ProductionDataEntryProps> = ({
 
                 <div>
                   <label className={labelClasses}>Color *</label>
-                  <TypedMemoryInput
+                  <Input
                     value={formData.color}
                     onChange={(e) => handleInputChange('color', e.target.value)}
-                    className={inputClasses}
-                    storageKey="garmentsColor"
                     placeholder="Color name"
+                    className={inputClasses}
                   />
                   {errors.color && <p className={errorClasses}>{errors.color}</p>}
                 </div>
-              </div>
-            </div>
 
-            {/* Production Targets */}
-            <div>
-              <h4 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                <Target className="h-5 w-5 mr-2 text-primary" />
-                Production Targets & Results
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <label className={labelClasses}>Target Quantity (pcs) *</label>
-                  <input
+                  <label className={labelClasses}>Rework (pcs)</label>
+                  <Input
                     type="number"
-                    value={formData.targetQuantity || ''}
-                    onChange={(e) => handleInputChange('targetQuantity', parseInt(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Target quantity"
+                    value={formData.rework}
+                    onChange={(e) => handleInputChange('rework', parseFloat(e.target.value) || 0)}
+                    placeholder="0"
                     min="0"
-                  />
-                  {errors.targetQuantity && <p className={errorClasses}>{errors.targetQuantity}</p>}
-                </div>
-
-                <div>
-                  <label className={labelClasses}>Completed Quantity (pcs)</label>
-                  <input
-                    type="number"
-                    value={formData.completedQuantity || ''}
-                    onChange={(e) => handleInputChange('completedQuantity', parseInt(e.target.value) || 0)}
                     className={inputClasses}
-                    placeholder="Completed quantity"
-                    min="0"
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClasses}>
-                    <BarChart3 className="inline h-4 w-4 mr-2" />
-                    Efficiency (%)
-                  </label>
-                  <input
-                    type="text"
-                    value={`${formData.efficiency || 0}%`}
-                    readOnly
-                    className={`${inputClasses} bg-muted/30 font-bold text-primary`}
                   />
                 </div>
               </div>
             </div>
+          )}
+        </div>
 
-            {/* Operations Tracking */}
-            <div>
-              <h4 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                <Scissors className="h-5 w-5 mr-2 text-primary" />
-                Operations Tracking (pieces completed)
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className={labelClasses}>Cutting</label>
-                  <input
-                    type="number"
-                    value={formData.operations?.cutting || ''}
-                    onChange={(e) => handleOperationChange('cutting', parseInt(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Pieces cut"
-                    min="0"
-                  />
-                </div>
+        {/* Section 4: Production Metrics */}
+        <div className="bg-muted/20 p-6 rounded-xl border border-border/50">
+          <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center">
+            <Target className="h-5 w-5 mr-2 text-primary" />
+            Production Metrics
+          </h3>
+          
+          {productionType === 'knitting' && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className={labelClasses}>
+                  <Target className="inline h-4 w-4 mr-1" />
+                  Target Production (kg) *
+                </label>
+                <Input
+                  type="number"
+                  value={formData.targetProduction}
+                  onChange={(e) => handleInputChange('targetProduction', parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  min="0"
+                  step="0.01"
+                  className={inputClasses}
+                />
+                {errors.targetProduction && <p className={errorClasses}>{errors.targetProduction}</p>}
+              </div>
 
-                <div>
-                  <label className={labelClasses}>Sewing</label>
-                  <input
-                    type="number"
-                    value={formData.operations?.sewing || ''}
-                    onChange={(e) => handleOperationChange('sewing', parseInt(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Pieces sewn"
-                    min="0"
-                  />
-                </div>
+              <div>
+                <label className={labelClasses}>
+                  <TrendingUp className="inline h-4 w-4 mr-1" />
+                  Actual Production (kg) *
+                </label>
+                <Input
+                  type="number"
+                  value={formData.actualProduction}
+                  onChange={(e) => handleInputChange('actualProduction', parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  min="0"
+                  step="0.01"
+                  className={inputClasses}
+                />
+                {errors.actualProduction && <p className={errorClasses}>{errors.actualProduction}</p>}
+              </div>
 
-                <div>
-                  <label className={labelClasses}>Finishing</label>
-                  <input
-                    type="number"
-                    value={formData.operations?.finishing || ''}
-                    onChange={(e) => handleOperationChange('finishing', parseInt(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Pieces finished"
-                    min="0"
-                  />
-                </div>
+              <div>
+                <label className={labelClasses}>
+                  <Award className="inline h-4 w-4 mr-1" />
+                  Efficiency (%)
+                </label>
+                <Input
+                  type="number"
+                  value={formData.efficiency}
+                  onChange={(e) => handleInputChange('efficiency', parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  min="0"
+                  max="200"
+                  className={inputClasses}
+                  readOnly
+                />
+              </div>
 
-                <div>
-                  <label className={labelClasses}>Packing</label>
-                  <input
-                    type="number"
-                    value={formData.operations?.packing || ''}
-                    onChange={(e) => handleOperationChange('packing', parseInt(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Pieces packed"
-                    min="0"
-                  />
-                </div>
+              <div>
+                <label className={labelClasses}>
+                  <Award className="inline h-4 w-4 mr-1" />
+                  Quality Grade *
+                </label>
+                <Select.Root value={formData.qualityGrade} onValueChange={(value) => handleInputChange('qualityGrade', value)}>
+                  <Select.Trigger className={selectTriggerClasses}>
+                    <Select.Value placeholder="Select Grade" />
+                    <Select.Icon>
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </Select.Icon>
+                  </Select.Trigger>
+                  <Select.Portal>
+                    <Select.Content className="overflow-hidden rounded-lg bg-card border border-border shadow-lg z-50">
+                      <Select.Viewport className="p-1">
+                        {QUALITY_GRADES.map(grade => (
+                          <SelectItemContent key={grade.value} value={grade.value}>
+                            {grade.label}
+                          </SelectItemContent>
+                        ))}
+                      </Select.Viewport>
+                    </Select.Content>
+                  </Select.Portal>
+                </Select.Root>
+                {errors.qualityGrade && <p className={errorClasses}>{errors.qualityGrade}</p>}
               </div>
             </div>
+          )}
 
-            {/* Defects & Rework */}
-            <div>
-              <h4 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                <AlertTriangle className="h-5 w-5 mr-2 text-orange-500" />
-                Defects & Rework Tracking
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {productionType === 'dyeing' && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className={labelClasses}>
+                  <Droplet className="inline h-4 w-4 mr-1" />
+                  Water Consumption (L)
+                </label>
+                <Input
+                  type="number"
+                  value={formData.waterConsumption}
+                  onChange={(e) => handleInputChange('waterConsumption', parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  min="0"
+                  className={inputClasses}
+                />
+              </div>
+
+              <div>
+                <label className={labelClasses}>
+                  <Zap className="inline h-4 w-4 mr-1" />
+                  Energy Consumption (kWh)
+                </label>
+                <Input
+                  type="number"
+                  value={formData.energyConsumption}
+                  onChange={(e) => handleInputChange('energyConsumption', parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  min="0"
+                  step="0.01"
+                  className={inputClasses}
+                />
+              </div>
+
+              <div>
+                <label className={labelClasses}>
+                  <Recycle className="inline h-4 w-4 mr-1" />
+                  Waste Generated (kg)
+                </label>
+                <Input
+                  type="number"
+                  value={formData.wasteGenerated}
+                  onChange={(e) => handleInputChange('wasteGenerated', parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  min="0"
+                  step="0.01"
+                  className={inputClasses}
+                />
+              </div>
+
+              <div>
+                <label className={labelClasses}>
+                  <Award className="inline h-4 w-4 mr-1" />
+                  Quality Grade *
+                </label>
+                <Select.Root value={formData.qualityGrade} onValueChange={(value) => handleInputChange('qualityGrade', value)}>
+                  <Select.Trigger className={selectTriggerClasses}>
+                    <Select.Value placeholder="Select Grade" />
+                    <Select.Icon>
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </Select.Icon>
+                  </Select.Trigger>
+                  <Select.Portal>
+                    <Select.Content className="overflow-hidden rounded-lg bg-card border border-border shadow-lg z-50">
+                      <Select.Viewport className="p-1">
+                        {QUALITY_GRADES.map(grade => (
+                          <SelectItemContent key={grade.value} value={grade.value}>
+                            {grade.label}
+                          </SelectItemContent>
+                        ))}
+                      </Select.Viewport>
+                    </Select.Content>
+                  </Select.Portal>
+                </Select.Root>
+                {errors.qualityGrade && <p className={errorClasses}>{errors.qualityGrade}</p>}
+              </div>
+            </div>
+          )}
+
+          {productionType === 'garments' && (
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <label className={labelClasses}>
+                  <Target className="inline h-4 w-4 mr-1" />
+                  Target Quantity (pcs) *
+                </label>
+                <Input
+                  type="number"
+                  value={formData.targetQuantity}
+                  onChange={(e) => handleInputChange('targetQuantity', parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  min="0"
+                  className={inputClasses}
+                />
+                {errors.targetQuantity && <p className={errorClasses}>{errors.targetQuantity}</p>}
+              </div>
+
+              <div>
+                <label className={labelClasses}>
+                  <TrendingUp className="inline h-4 w-4 mr-1" />
+                  Completed Quantity (pcs) *
+                </label>
+                <Input
+                  type="number"
+                  value={formData.completedQuantity}
+                  onChange={(e) => handleInputChange('completedQuantity', parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  min="0"
+                  className={inputClasses}
+                />
+                {errors.completedQuantity && <p className={errorClasses}>{errors.completedQuantity}</p>}
+              </div>
+
+              <div>
+                <label className={labelClasses}>
+                  <Award className="inline h-4 w-4 mr-1" />
+                  Efficiency (%)
+                </label>
+                <Input
+                  type="number"
+                  value={formData.efficiency}
+                  onChange={(e) => handleInputChange('efficiency', parseFloat(e.target.value) || 0)}
+                  placeholder="0"
+                  min="0"
+                  max="200"
+                  className={inputClasses}
+                  readOnly
+                />
+              </div>
+
+              <div>
+                <label className={labelClasses}>
+                  <Award className="inline h-4 w-4 mr-1" />
+                  Quality Grade *
+                </label>
+                <Select.Root value={formData.qualityGrade} onValueChange={(value) => handleInputChange('qualityGrade', value)}>
+                  <Select.Trigger className={selectTriggerClasses}>
+                    <Select.Value placeholder="Select Grade" />
+                    <Select.Icon>
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </Select.Icon>
+                  </Select.Trigger>
+                  <Select.Portal>
+                    <Select.Content className="overflow-hidden rounded-lg bg-card border border-border shadow-lg z-50">
+                      <Select.Viewport className="p-1">
+                        {QUALITY_GRADES.map(grade => (
+                          <SelectItemContent key={grade.value} value={grade.value}>
+                            {grade.label}
+                          </SelectItemContent>
+                        ))}
+                      </Select.Viewport>
+                    </Select.Content>
+                  </Select.Portal>
+                </Select.Root>
+                {errors.qualityGrade && <p className={errorClasses}>{errors.qualityGrade}</p>}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Section 5: Defects & Quality (for knitting and garments) */}
+        {(productionType === 'knitting' || productionType === 'garments') && (
+          <div className="bg-muted/20 p-6 rounded-xl border border-border/50">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2 text-orange-500" />
+              Defects & Quality Control
+            </h3>
+            
+            {productionType === 'knitting' && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <div>
-                  <label className={labelClasses}>Stitching Defects</label>
-                  <input
+                  <label className={labelClasses}>Holes</label>
+                  <Input
                     type="number"
-                    value={formData.defects?.stitchingDefects || ''}
-                    onChange={(e) => handleDefectChange('stitchingDefects', parseInt(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Stitching issues"
+                    value={formData.defects?.holes || 0}
+                    onChange={(e) => handleNestedInputChange('defects', 'holes', parseFloat(e.target.value) || 0)}
+                    placeholder="0"
                     min="0"
+                    className={inputClasses}
                   />
                 </div>
 
                 <div>
-                  <label className={labelClasses}>Measurement Defects</label>
-                  <input
+                  <label className={labelClasses}>Drop Stitches</label>
+                  <Input
                     type="number"
-                    value={formData.defects?.measurementDefects || ''}
-                    onChange={(e) => handleDefectChange('measurementDefects', parseInt(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Size issues"
+                    value={formData.defects?.dropStitches || 0}
+                    onChange={(e) => handleNestedInputChange('defects', 'dropStitches', parseFloat(e.target.value) || 0)}
+                    placeholder="0"
                     min="0"
+                    className={inputClasses}
                   />
                 </div>
 
                 <div>
-                  <label className={labelClasses}>Fabric Defects</label>
-                  <input
+                  <label className={labelClasses}>Yarn Breaks</label>
+                  <Input
                     type="number"
-                    value={formData.defects?.fabricDefects || ''}
-                    onChange={(e) => handleDefectChange('fabricDefects', parseInt(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Fabric issues"
+                    value={formData.defects?.yarnBreaks || 0}
+                    onChange={(e) => handleNestedInputChange('defects', 'yarnBreaks', parseFloat(e.target.value) || 0)}
+                    placeholder="0"
                     min="0"
+                    className={inputClasses}
                   />
                 </div>
 
                 <div>
                   <label className={labelClasses}>Other Defects</label>
-                  <input
+                  <Input
                     type="number"
-                    value={formData.defects?.other || ''}
-                    onChange={(e) => handleDefectChange('other', parseInt(e.target.value) || 0)}
-                    className={inputClasses}
-                    placeholder="Other issues"
+                    value={formData.defects?.other || 0}
+                    onChange={(e) => handleNestedInputChange('defects', 'other', parseFloat(e.target.value) || 0)}
+                    placeholder="0"
                     min="0"
-                  />
-                </div>
-
-                <div>
-                  <label className={labelClasses}>Rework (pcs)</label>
-                  <input
-                    type="number"
-                    value={formData.rework || ''}
-                    onChange={(e) => handleInputChange('rework', parseInt(e.target.value) || 0)}
                     className={inputClasses}
-                    placeholder="Rework pieces"
-                    min="0"
                   />
                 </div>
               </div>
-            </div>
+            )}
+
+            {productionType === 'garments' && (
+              <div className="space-y-6">
+                {/* Defects Row */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className={labelClasses}>Stitching Defects</label>
+                    <Input
+                      type="number"
+                      value={formData.defects?.stitchingDefects || 0}
+                      onChange={(e) => handleNestedInputChange('defects', 'stitchingDefects', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      min="0"
+                      className={inputClasses}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClasses}>Measurement Defects</label>
+                    <Input
+                      type="number"
+                      value={formData.defects?.measurementDefects || 0}
+                      onChange={(e) => handleNestedInputChange('defects', 'measurementDefects', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      min="0"
+                      className={inputClasses}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClasses}>Fabric Defects</label>
+                    <Input
+                      type="number"
+                      value={formData.defects?.fabricDefects || 0}
+                      onChange={(e) => handleNestedInputChange('defects', 'fabricDefects', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      min="0"
+                      className={inputClasses}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClasses}>Other Defects</label>
+                    <Input
+                      type="number"
+                      value={formData.defects?.other || 0}
+                      onChange={(e) => handleNestedInputChange('defects', 'other', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      min="0"
+                      className={inputClasses}
+                    />
+                  </div>
+                </div>
+
+                {/* Operations Row */}
+                <div>
+                  <h4 className="text-md font-medium text-foreground mb-3">Operations Completed</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                      <label className={labelClasses}>Cutting (pcs)</label>
+                      <Input
+                        type="number"
+                        value={formData.operations?.cutting || 0}
+                        onChange={(e) => handleNestedInputChange('operations', 'cutting', parseFloat(e.target.value) || 0)}
+                        placeholder="0"
+                        min="0"
+                        className={inputClasses}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={labelClasses}>Sewing (pcs)</label>
+                      <Input
+                        type="number"
+                        value={formData.operations?.sewing || 0}
+                        onChange={(e) => handleNestedInputChange('operations', 'sewing', parseFloat(e.target.value) || 0)}
+                        placeholder="0"
+                        min="0"
+                        className={inputClasses}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={labelClasses}>Finishing (pcs)</label>
+                      <Input
+                        type="number"
+                        value={formData.operations?.finishing || 0}
+                        onChange={(e) => handleNestedInputChange('operations', 'finishing', parseFloat(e.target.value) || 0)}
+                        placeholder="0"
+                        min="0"
+                        className={inputClasses}
+                      />
+                    </div>
+
+                    <div>
+                      <label className={labelClasses}>Packing (pcs)</label>
+                      <Input
+                        type="number"
+                        value={formData.operations?.packing || 0}
+                        onChange={(e) => handleNestedInputChange('operations', 'packing', parseFloat(e.target.value) || 0)}
+                        placeholder="0"
+                        min="0"
+                        className={inputClasses}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
-      </motion.div>
 
-      {/* Quality & Notes Section */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className={sectionClasses}
-      >
-        <div className={sectionHeaderClasses}>
-          <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-xl">
-            <Award className="h-6 w-6 text-white" />
-          </div>
-          <div>
-            <h3 className="text-xl font-bold text-foreground">Quality Assessment & Notes</h3>
-            <p className="text-muted-foreground">Final quality grading and additional observations</p>
-          </div>
-        </div>
+        {/* Section 6: Chemical Consumption (for dyeing only) */}
+        {productionType === 'dyeing' && (
+          <div className="bg-muted/20 p-6 rounded-xl border border-border/50">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center">
+              <Beaker className="h-5 w-5 mr-2 text-purple-500" />
+              Chemical Consumption & Quality Results
+            </h3>
+            
+            <div className="space-y-6">
+              {/* Chemical Consumption Row */}
+              <div>
+                <h4 className="text-md font-medium text-foreground mb-3">Chemical Consumption (kg)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className={labelClasses}>Dyes</label>
+                    <Input
+                      type="number"
+                      value={formData.chemicalConsumption?.dyes || 0}
+                      onChange={(e) => handleNestedInputChange('chemicalConsumption', 'dyes', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      min="0"
+                      step="0.01"
+                      className={inputClasses}
+                    />
+                  </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div>
-            <label className={labelClasses}>
-              <Award className="inline h-4 w-4 mr-2" />
-              Quality Grade
-            </label>
-            <Select.Root value={formData.qualityGrade} onValueChange={(value) => handleInputChange('qualityGrade', value)}>
-              <Select.Trigger className={inputClasses}>
-                <Select.Value placeholder="Select Quality Grade" />
-                <Select.Icon>
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </Select.Icon>
-              </Select.Trigger>
-              <Select.Portal>
-                <Select.Content className="overflow-hidden rounded-xl bg-card border border-border shadow-2xl z-50">
-                  <Select.Viewport className="p-2">
-                    {QUALITY_GRADES.map(grade => (
-                      <Select.Item
-                        key={grade.value}
-                        value={grade.value}
-                        className="relative flex items-center rounded-lg py-3 pl-4 pr-12 text-foreground text-sm outline-none data-[highlighted]:bg-primary/20 transition-colors cursor-pointer"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className={`w-3 h-3 rounded-full ${
-                            grade.value === 'A' ? 'bg-green-500' :
-                            grade.value === 'B' ? 'bg-blue-500' :
-                            grade.value === 'C' ? 'bg-yellow-500' : 'bg-red-500'
-                          }`} />
-                          <Select.ItemText>{grade.label}</Select.ItemText>
-                        </div>
-                      </Select.Item>
-                    ))}
-                  </Select.Viewport>
-                </Select.Content>
-              </Select.Portal>
-            </Select.Root>
-          </div>
+                  <div>
+                    <label className={labelClasses}>Salt</label>
+                    <Input
+                      type="number"
+                      value={formData.chemicalConsumption?.salt || 0}
+                      onChange={(e) => handleNestedInputChange('chemicalConsumption', 'salt', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      min="0"
+                      step="0.01"
+                      className={inputClasses}
+                    />
+                  </div>
 
+                  <div>
+                    <label className={labelClasses}>Soda</label>
+                    <Input
+                      type="number"
+                      value={formData.chemicalConsumption?.soda || 0}
+                      onChange={(e) => handleNestedInputChange('chemicalConsumption', 'soda', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      min="0"
+                      step="0.01"
+                      className={inputClasses}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClasses}>Auxiliaries</label>
+                    <Input
+                      type="number"
+                      value={formData.chemicalConsumption?.auxiliaries || 0}
+                      onChange={(e) => handleNestedInputChange('chemicalConsumption', 'auxiliaries', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      min="0"
+                      step="0.01"
+                      className={inputClasses}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Quality Results Row */}
+              <div>
+                <h4 className="text-md font-medium text-foreground mb-3">Quality Assessment</h4>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className={labelClasses}>Color Match</label>
+                    <Select.Root 
+                      value={formData.qualityResults?.colorMatch || 'excellent'} 
+                      onValueChange={(value) => handleNestedInputChange('qualityResults', 'colorMatch', value)}
+                    >
+                      <Select.Trigger className={selectTriggerClasses}>
+                        <Select.Value />
+                        <Select.Icon>
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </Select.Icon>
+                      </Select.Trigger>
+                      <Select.Portal>
+                        <Select.Content className="overflow-hidden rounded-lg bg-card border border-border shadow-lg z-50">
+                          <Select.Viewport className="p-1">
+                            <SelectItemContent value="excellent">Excellent</SelectItemContent>
+                            <SelectItemContent value="good">Good</SelectItemContent>
+                            <SelectItemContent value="acceptable">Acceptable</SelectItemContent>
+                            <SelectItemContent value="poor">Poor</SelectItemContent>
+                          </Select.Viewport>
+                        </Select.Content>
+                      </Select.Portal>
+                    </Select.Root>
+                  </div>
+
+                  <div>
+                    <label className={labelClasses}>Fastness</label>
+                    <Select.Root 
+                      value={formData.qualityResults?.fastness || 'excellent'} 
+                      onValueChange={(value) => handleNestedInputChange('qualityResults', 'fastness', value)}
+                    >
+                      <Select.Trigger className={selectTriggerClasses}>
+                        <Select.Value />
+                        <Select.Icon>
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </Select.Icon>
+                      </Select.Trigger>
+                      <Select.Portal>
+                        <Select.Content className="overflow-hidden rounded-lg bg-card border border-border shadow-lg z-50">
+                          <Select.Viewport className="p-1">
+                            <SelectItemContent value="excellent">Excellent</SelectItemContent>
+                            <SelectItemContent value="good">Good</SelectItemContent>
+                            <SelectItemContent value="acceptable">Acceptable</SelectItemContent>
+                            <SelectItemContent value="poor">Poor</SelectItemContent>
+                          </Select.Viewport>
+                        </Select.Content>
+                      </Select.Portal>
+                    </Select.Root>
+                  </div>
+
+                  <div>
+                    <label className={labelClasses}>Uniformity</label>
+                    <Select.Root 
+                      value={formData.qualityResults?.uniformity || 'excellent'} 
+                      onValueChange={(value) => handleNestedInputChange('qualityResults', 'uniformity', value)}
+                    >
+                      <Select.Trigger className={selectTriggerClasses}>
+                        <Select.Value />
+                        <Select.Icon>
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </Select.Icon>
+                      </Select.Trigger>
+                      <Select.Portal>
+                        <Select.Content className="overflow-hidden rounded-lg bg-card border border-border shadow-lg z-50">
+                          <Select.Viewport className="p-1">
+                            <SelectItemContent value="excellent">Excellent</SelectItemContent>
+                            <SelectItemContent value="good">Good</SelectItemContent>
+                            <SelectItemContent value="acceptable">Acceptable</SelectItemContent>
+                            <SelectItemContent value="poor">Poor</SelectItemContent>
+                          </Select.Viewport>
+                        </Select.Content>
+                      </Select.Portal>
+                    </Select.Root>
+                  </div>
+
+                  <div>
+                    <label className={labelClasses}>Overall Grade</label>
+                    <div className="mt-1 p-2 bg-muted/30 rounded-lg border border-border">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
+                        formData.qualityGrade === 'A' ? 'bg-green-100 text-green-800' :
+                        formData.qualityGrade === 'B' ? 'bg-blue-100 text-blue-800' :
+                        formData.qualityGrade === 'C' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        Grade {formData.qualityGrade}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {productionType === 'garments' && (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div>
+                    <label className={labelClasses}>Stitching Defects</label>
+                    <Input
+                      type="number"
+                      value={formData.defects?.stitchingDefects || 0}
+                      onChange={(e) => handleNestedInputChange('defects', 'stitchingDefects', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      min="0"
+                      className={inputClasses}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClasses}>Measurement Defects</label>
+                    <Input
+                      type="number"
+                      value={formData.defects?.measurementDefects || 0}
+                      onChange={(e) => handleNestedInputChange('defects', 'measurementDefects', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      min="0"
+                      className={inputClasses}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClasses}>Fabric Defects</label>
+                    <Input
+                      type="number"
+                      value={formData.defects?.fabricDefects || 0}
+                      onChange={(e) => handleNestedInputChange('defects', 'fabricDefects', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      min="0"
+                      className={inputClasses}
+                    />
+                  </div>
+
+                  <div>
+                    <label className={labelClasses}>Other Defects</label>
+                    <Input
+                      type="number"
+                      value={formData.defects?.other || 0}
+                      onChange={(e) => handleNestedInputChange('defects', 'other', parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      min="0"
+                      className={inputClasses}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+        {/* Section 7: Additional Notes */}
+        <div className="bg-muted/20 p-6 rounded-xl border border-border/50">
+          <h3 className="text-lg font-semibold text-foreground mb-4">Additional Notes</h3>
           <div>
-            <label className={labelClasses}>
-              <Settings className="inline h-4 w-4 mr-2" />
-              Production Notes
-            </label>
+            <label className={labelClasses}>Production Notes</label>
             <textarea
               value={formData.notes || ''}
               onChange={(e) => handleInputChange('notes', e.target.value)}
-              className={`${inputClasses} min-h-[120px] resize-none`}
-              rows={5}
-              placeholder="Add any observations, issues, or special notes about this production run..."
+              placeholder="Add any additional notes about this production entry..."
+              className={`${inputClasses} min-h-[100px] resize-none`}
+              rows={4}
             />
           </div>
         </div>
-      </motion.div>
 
-      {/* Summary Card */}
-      {(formData.efficiency > 0 || formData.totalHours > 0) && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-gradient-to-r from-primary/10 to-secondary/10 p-8 rounded-2xl border border-border/50"
-        >
-          <h3 className="text-xl font-bold text-foreground mb-6 flex items-center">
-            <BarChart3 className="h-6 w-6 mr-3 text-primary" />
-            Production Summary
-          </h3>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <Clock className="h-6 w-6 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Working Hours</p>
-                  <p className="text-2xl font-bold text-foreground">{formData.totalHours || 0}h</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <Target className="h-6 w-6 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Efficiency</p>
-                  <p className="text-2xl font-bold text-foreground">{formData.efficiency || 0}%</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-purple-100 rounded-lg">
-                  <Award className="h-6 w-6 text-purple-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Quality Grade</p>
-                  <p className="text-2xl font-bold text-foreground">{formData.qualityGrade || 'A'}</p>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-card p-6 rounded-xl border border-border shadow-sm">
-              <div className="flex items-center gap-3">
-                <div className="p-3 bg-orange-100 rounded-lg">
-                  <AlertTriangle className="h-6 w-6 text-orange-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Defects</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {formData.defects ? Object.values(formData.defects).reduce((sum: number, val: any) => sum + (val || 0), 0) : 0}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      )}
-    </div>
+        {/* Submit Button */}
+        <div className="flex justify-end gap-4 pt-6 border-t border-border">
+          {onCancel && (
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancel
+            </Button>
+          )}
+          <Button 
+            type="submit" 
+            className="bg-primary hover:bg-primary/90 text-primary-foreground px-8"
+          >
+            <Save className="h-4 w-4 mr-2" />
+            {editingEntry ? 'Update Entry' : 'Save Entry'}
+          </Button>
+        </div>
+      </form>
+    </motion.div>
   );
 };
