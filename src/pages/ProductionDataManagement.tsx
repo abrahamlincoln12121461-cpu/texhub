@@ -195,7 +195,7 @@ export function ProductionDataManagement({ user }: ProductionDataManagementProps
             </div>
             <div className="flex items-center gap-3">
               <Select.Root value={productionType} onValueChange={(value) => setProductionType(value as any)}>
-                <Select.Trigger className="flex items-center justify-between w-48 rounded-lg border border-border shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/20 bg-background text-foreground py-2 px-3">
+                <Select.Trigger className="flex items-center justify-between w-64 rounded-lg border border-border shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/20 bg-background text-foreground py-2 px-3">
                   <div className="flex items-center gap-2">
                     {getProductionTypeIcon(productionType)}
                     <Select.Value />
@@ -281,15 +281,41 @@ export function ProductionDataManagement({ user }: ProductionDataManagementProps
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
             >
-              <ProductionDataEntry
-                productionType={productionType}
-                onSave={handleSaveEntry}
-                editingEntry={editingEntry}
-                onCancel={() => {
-                  setEditingEntry(null);
-                  setIsEntryDialogOpen(false);
-                }}
-              />
+              <div className="bg-card rounded-lg shadow-sm border border-border p-8">
+                <div className="flex items-center justify-between mb-8">
+                  <div className="flex items-center gap-4">
+                    <div className={`p-4 rounded-xl bg-gradient-to-br ${getProductionTypeColor(productionType)}`}>
+                      {getProductionTypeIcon(productionType)}
+                    </div>
+                    <div>
+                      <h2 className="text-2xl font-bold text-foreground capitalize">
+                        {productionType} Production Entry
+                      </h2>
+                      <p className="text-muted-foreground">Record daily production data and metrics</p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => {
+                      setEditingEntry(null);
+                      setIsEntryDialogOpen(true);
+                    }}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add New Entry
+                  </Button>
+                </div>
+                
+                <ProductionDataEntry
+                  productionType={productionType}
+                  onSave={handleSaveEntry}
+                  editingEntry={editingEntry}
+                  onCancel={() => {
+                    setEditingEntry(null);
+                    setIsEntryDialogOpen(false);
+                  }}
+                />
+              </div>
             </motion.div>
           )}
 
@@ -333,7 +359,7 @@ export function ProductionDataManagement({ user }: ProductionDataManagementProps
                     type="date"
                     value={dateFilter}
                     onChange={(e) => setDateFilter(e.target.value)}
-                    className="rounded-md border border-border shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/20 bg-background text-foreground py-2 px-3"
+                    className="w-40 rounded-lg border border-border shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/20 bg-background text-foreground py-2 px-3 text-sm font-medium"
                   />
                   
                   <Select.Root value={shiftFilter} onValueChange={setShiftFilter}>
