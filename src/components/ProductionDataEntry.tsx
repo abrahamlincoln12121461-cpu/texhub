@@ -69,16 +69,13 @@ export const ProductionDataEntry: React.FC<ProductionDataEntryProps> = ({
           <div className="grid grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-              <div className="relative">
-                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
-                <input
+              <input
                 type="date"
                 value={formData.date || ''}
                 onChange={(e) => handleInputChange('date', e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-border shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/20 bg-background text-foreground transition-all duration-200 hover:border-primary/50 font-medium"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required
               />
-              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Shift</label>
@@ -137,29 +134,23 @@ export const ProductionDataEntry: React.FC<ProductionDataEntryProps> = ({
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
-                <input
+              <input
                 type="time"
                 value={formData.startTime || ''}
                 onChange={(e) => handleInputChange('startTime', e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-border shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/20 bg-background text-foreground transition-all duration-200 hover:border-primary/50 font-medium"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                 required
               />
-              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
-              <div className="relative">
-                <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4 z-10" />
-                <input
+              <input
                 type="time"
                 value={formData.endTime || ''}
                 onChange={(e) => handleInputChange('endTime', e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-border shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/20 bg-background text-foreground transition-all duration-200 hover:border-primary/50 font-medium"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                 required
               />
-              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Total Hours</label>
