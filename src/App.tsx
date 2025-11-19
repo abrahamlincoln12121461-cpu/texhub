@@ -205,42 +205,45 @@ function ChatPage({ onBack }: { onBack: () => void }) {
               className={`mb-6 flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {message.isAboutMe && message.sender === 'ai' ? (
-                <div className="w-full max-w-4xl">
-                  <div className="flex flex-col items-center py-8">
-                    <div className="w-32 h-32 rounded-full overflow-hidden mb-6">
-                      <div className="text-6xl flex items-center justify-center h-full">👨</div>
+                <div className="w-full max-w-4xl py-6">
+                  <div className="flex gap-8 mb-8">
+                    <div className="flex-shrink-0">
+                      <div className="w-48 h-48 rounded-lg overflow-hidden bg-gradient-to-b from-blue-100 to-blue-50">
+                        <div className="w-full h-full flex items-center justify-center text-9xl">👨</div>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-4 mb-6">
-                      <h2 className="text-3xl font-bold">Raphael Giraud</h2>
-                    </div>
+                    <div className="flex-1">
+                      <div className="mb-4">
+                        <h2 className="text-3xl font-bold mb-2">Raphael Giraud</h2>
+                        <div className="flex items-center gap-3 text-gray-600">
+                          <span>21 years old</span>
+                          <span>•</span>
+                          <span>Paris, France</span>
+                        </div>
+                      </div>
 
-                    <div className="flex items-center gap-4 text-gray-600 mb-6">
-                      <span>21 years old</span>
-                      <span>•</span>
-                      <span>Paris, France</span>
-                    </div>
+                      <div className="mb-6">
+                        <p className="text-gray-700 mb-3">Hey 👋</p>
+                        <p className="text-gray-700 leading-relaxed">
+                          I'm Raph also known as Toukoum. I'm a developer specializing in AI at 42 Paris. I'm working at LightOn AI in Paris. I'm passionate about AI, tech, Entrepreneurship and SaaS tech.
+                        </p>
+                      </div>
 
-                    <div className="text-center mb-6">
-                      <p className="text-gray-700 mb-4">Hey 👋</p>
-                      <p className="text-gray-700 mb-4">
-                        I'm Raph also known as Toukoum. I'm a developer specializing in AI at 42 Paris. I'm working at LightOn AI in Paris. I'm passionate about AI, tech, Entrepreneurship and SaaS tech.
-                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <span className="px-3 py-1.5 bg-gray-100 rounded-full text-xs font-medium">AI</span>
+                        <span className="px-3 py-1.5 bg-gray-100 rounded-full text-xs font-medium">Developer</span>
+                        <span className="px-3 py-1.5 bg-gray-100 rounded-full text-xs font-medium">42 Paris</span>
+                        <span className="px-3 py-1.5 bg-gray-100 rounded-full text-xs font-medium">Sport</span>
+                        <span className="px-3 py-1.5 bg-gray-100 rounded-full text-xs font-medium">SaaS Builder</span>
+                      </div>
                     </div>
+                  </div>
 
-                    <div className="flex flex-wrap gap-2 justify-center mb-8">
-                      <span className="px-4 py-2 bg-gray-100 rounded-full text-sm font-medium">AI</span>
-                      <span className="px-4 py-2 bg-gray-100 rounded-full text-sm font-medium">Developer</span>
-                      <span className="px-4 py-2 bg-gray-100 rounded-full text-sm font-medium">42 Paris</span>
-                      <span className="px-4 py-2 bg-gray-100 rounded-full text-sm font-medium">Sport</span>
-                      <span className="px-4 py-2 bg-gray-100 rounded-full text-sm font-medium">SaaS Builder</span>
-                    </div>
-
-                    <div className="bg-gray-50 rounded-2xl p-8 w-full">
-                      <p className="text-gray-700 leading-relaxed mb-4">
-                        I'm Raphael Giraud, a 21-year-old full-stack developer specializing in AI, currently rocking it at 42 Paris. Before diving into the tech world, I was a competitive mountain biker! Now, I'm interning at LightOn AI in Paris, where I get to play with some cool AI stuff. I'm super passionate about tech, entrepreneurship, and building SaaS products. Voilà! What about you? What brings you here? 😊
-                      </p>
-                    </div>
+                  <div className="bg-gray-50 rounded-lg p-6 w-full">
+                    <p className="text-gray-700 leading-relaxed">
+                      I'm Raphael Giraud, a 21-year-old full-stack developer specializing in AI, currently rocking it at 42 Paris. Before diving into the tech world, I was a competitive mountain biker! Now, I'm interning at LightOn AI in Paris, where I get to play with some cool AI stuff. I'm super passionate about tech, entrepreneurship, and building SaaS products. Voilà! What about you? What brings you here? 😊
+                    </p>
                   </div>
                 </div>
               ) : (
