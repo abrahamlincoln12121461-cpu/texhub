@@ -6,6 +6,7 @@ interface Message {
   text: string;
   sender: 'user' | 'ai';
   timestamp: Date;
+  isAboutMe?: boolean;
 }
 
 const aiResponses = [
@@ -102,12 +103,28 @@ function ChatPage({ onBack }: { onBack: () => void }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSendMessage = async () => {
-    if (!input.trim()) return;
+  const getAIResponse = (userInput: string) => {
+    const lowerInput = userInput.toLowerCase();
+
+    if (lowerInput.includes('who are you') ||
+        lowerInput.includes('about you') ||
+        lowerInput.includes('tell me about yourself') ||
+        lowerInput.includes('know more about you') ||
+        lowerInput.includes('about me') ||
+        lowerInput === 'me') {
+      return { text: '', isAboutMe: true };
+    }
+
+    return { text: aiResponses[Math.floor(Math.random() * aiResponses.length)], isAboutMe: false };
+  };
+
+  const handleSendMessage = async (quickQuestion?: string) => {
+    const messageText = quickQuestion || input.trim();
+    if (!messageText) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
-      text: input,
+      text: messageText,
       sender: 'user',
       timestamp: new Date(),
     };
@@ -117,12 +134,13 @@ function ChatPage({ onBack }: { onBack: () => void }) {
     setIsLoading(true);
 
     setTimeout(() => {
-      const randomResponse = aiResponses[Math.floor(Math.random() * aiResponses.length)];
+      const response = getAIResponse(messageText);
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),
-        text: randomResponse,
+        text: response.text,
         sender: 'ai',
         timestamp: new Date(),
+        isAboutMe: response.isAboutMe,
       };
       setMessages((prev) => [...prev, aiMessage]);
       setIsLoading(false);
@@ -186,15 +204,56 @@ function ChatPage({ onBack }: { onBack: () => void }) {
               key={message.id}
               className={`mb-6 flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <div
-                className={`max-w-2xl px-6 py-4 rounded-lg ${
-                  message.sender === 'user'
-                    ? 'bg-blue-500 text-white rounded-br-none'
-                    : 'bg-gray-100 text-gray-900 rounded-bl-none'
-                }`}
-              >
-                <p className="leading-relaxed">{message.text}</p>
-              </div>
+              {message.isAboutMe && message.sender === 'ai' ? (
+                <div className="w-full max-w-4xl">
+                  <div className="flex flex-col items-center py-8">
+                    <div className="w-32 h-32 rounded-full overflow-hidden mb-6">
+                      <div className="text-6xl flex items-center justify-center h-full">👨</div>
+                    </div>
+
+                    <div className="flex items-center gap-4 mb-6">
+                      <h2 className="text-3xl font-bold">Raphael Giraud</h2>
+                    </div>
+
+                    <div className="flex items-center gap-4 text-gray-600 mb-6">
+                      <span>21 years old</span>
+                      <span>•</span>
+                      <span>Paris, France</span>
+                    </div>
+
+                    <div className="text-center mb-6">
+                      <p className="text-gray-700 mb-4">Hey 👋</p>
+                      <p className="text-gray-700 mb-4">
+                        I'm Raph also known as Toukoum. I'm a developer specializing in AI at 42 Paris. I'm working at LightOn AI in Paris. I'm passionate about AI, tech, Entrepreneurship and SaaS tech.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 justify-center mb-8">
+                      <span className="px-4 py-2 bg-gray-100 rounded-full text-sm font-medium">AI</span>
+                      <span className="px-4 py-2 bg-gray-100 rounded-full text-sm font-medium">Developer</span>
+                      <span className="px-4 py-2 bg-gray-100 rounded-full text-sm font-medium">42 Paris</span>
+                      <span className="px-4 py-2 bg-gray-100 rounded-full text-sm font-medium">Sport</span>
+                      <span className="px-4 py-2 bg-gray-100 rounded-full text-sm font-medium">SaaS Builder</span>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-2xl p-8 w-full">
+                      <p className="text-gray-700 leading-relaxed mb-4">
+                        I'm Raphael Giraud, a 21-year-old full-stack developer specializing in AI, currently rocking it at 42 Paris. Before diving into the tech world, I was a competitive mountain biker! Now, I'm interning at LightOn AI in Paris, where I get to play with some cool AI stuff. I'm super passionate about tech, entrepreneurship, and building SaaS products. Voilà! What about you? What brings you here? 😊
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  className={`max-w-2xl px-6 py-4 rounded-lg ${
+                    message.sender === 'user'
+                      ? 'bg-blue-500 text-white rounded-br-none'
+                      : 'bg-gray-100 text-gray-900 rounded-bl-none'
+                  }`}
+                >
+                  <p className="leading-relaxed">{message.text}</p>
+                </div>
+              )}
             </div>
           ))}
 
@@ -233,7 +292,7 @@ function ChatPage({ onBack }: { onBack: () => void }) {
           <div className={`flex gap-3 mb-6 justify-center transition-all duration-500 ease-in-out overflow-hidden flex-wrap ${
             showQuickQuestions ? 'max-h-16 opacity-100' : 'max-h-0 opacity-0'
           }`}>
-            <button className="group flex flex-row items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-300 hover:shadow-md hover:border-gray-300">
+            <button onClick={() => handleSendMessage('Who are you? I want to know more about you.')} className="group flex flex-row items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-300 hover:shadow-md hover:border-gray-300">
               <div className="w-5 h-5 rounded-md bg-blue-50 flex items-center justify-center transition-transform duration-300 group-hover:rotate-12">
                 <User className="w-3 h-3 text-blue-500" />
               </div>
@@ -280,7 +339,7 @@ function ChatPage({ onBack }: { onBack: () => void }) {
               className="w-full px-6 py-4 pr-14 rounded-xl border border-gray-200 bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
             />
             <button
-              onClick={handleSendMessage}
+              onClick={() => handleSendMessage()}
               disabled={isLoading || !input.trim()}
               className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-blue-500 rounded-xl flex items-center justify-center hover:bg-blue-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed hover:shadow-lg"
             >
