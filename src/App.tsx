@@ -62,27 +62,27 @@ function HomePage({ onStartChat }: { onStartChat: () => void }) {
         </div>
 
         <div className="flex gap-4">
-          <button className="flex flex-col items-center gap-2 px-8 py-4 bg-white border border-gray-200 rounded-2xl hover:bg-gray-50 transition-colors min-w-[100px]">
+          <button className="flex flex-col items-center gap-2 px-8 py-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors min-w-[100px]">
             <User className="w-5 h-5 text-blue-500" />
             <span className="text-sm font-medium">Me</span>
           </button>
 
-          <button className="flex flex-col items-center gap-2 px-8 py-4 bg-white border border-gray-200 rounded-2xl hover:bg-gray-50 transition-colors min-w-[100px]">
+          <button className="flex flex-col items-center gap-2 px-8 py-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors min-w-[100px]">
             <FolderKanban className="w-5 h-5 text-green-500" />
             <span className="text-sm font-medium">Projects</span>
           </button>
 
-          <button className="flex flex-col items-center gap-2 px-8 py-4 bg-white border border-gray-200 rounded-2xl hover:bg-gray-50 transition-colors min-w-[100px]">
+          <button className="flex flex-col items-center gap-2 px-8 py-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors min-w-[100px]">
             <Sparkles className="w-5 h-5 text-purple-500" />
             <span className="text-sm font-medium">Skills</span>
           </button>
 
-          <button className="flex flex-col items-center gap-2 px-8 py-4 bg-white border border-gray-200 rounded-2xl hover:bg-gray-50 transition-colors min-w-[100px]">
+          <button className="flex flex-col items-center gap-2 px-8 py-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors min-w-[100px]">
             <Palette className="w-5 h-5 text-pink-500" />
             <span className="text-sm font-medium">Fun</span>
           </button>
 
-          <button className="flex flex-col items-center gap-2 px-8 py-4 bg-white border border-gray-200 rounded-2xl hover:bg-gray-50 transition-colors min-w-[100px]">
+          <button className="flex flex-col items-center gap-2 px-8 py-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors min-w-[100px]">
             <Phone className="w-5 h-5 text-orange-500" />
             <span className="text-sm font-medium">Contact</span>
           </button>
