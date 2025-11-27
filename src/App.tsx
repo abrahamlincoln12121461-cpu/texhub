@@ -107,7 +107,7 @@ function HomePage({ onStartChat }: { onStartChat: () => void }) {
             <span className="text-sm font-medium">Me</span>
           </button>
 
-          <button className="flex flex-col items-center gap-2 px-8 py-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors min-w-[100px]">
+          <button onClick={onStartChat} className="flex flex-col items-center gap-2 px-8 py-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors min-w-[100px]">
             <FolderKanban className="w-5 h-5 text-green-500" />
             <span className="text-sm font-medium">Projects</span>
           </button>
