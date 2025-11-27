@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { ArrowRight, User, FolderKanban, Sparkles, Palette, Phone, Info } from 'lucide-react';
+import { ArrowRight, User, FolderKanban, Sparkles, Palette, Phone, Info, ExternalLink, Github, Star } from 'lucide-react';
 
 interface Message {
   id: string;
@@ -7,7 +7,47 @@ interface Message {
   sender: 'user' | 'ai';
   timestamp: Date;
   isAboutMe?: boolean;
+  isProjects?: boolean;
 }
+
+interface Project {
+  name: string;
+  description: string;
+  url: string;
+  tech: string[];
+  color: string;
+}
+
+const projects: Project[] = [
+  {
+    name: 'Production Flask',
+    description: 'A production-ready Flask application with best practices, scalable architecture, and modern deployment strategies.',
+    url: 'https://github.com/Solved-Overnight/production-flask',
+    tech: ['Python', 'Flask', 'Docker', 'PostgreSQL'],
+    color: 'from-blue-500 to-cyan-500'
+  },
+  {
+    name: 'ToolsHub',
+    description: 'A centralized hub for developer tools and utilities, streamlining workflows and boosting productivity.',
+    url: 'https://github.com/Solved-Overnight/toolsHub',
+    tech: ['JavaScript', 'React', 'Node.js', 'API'],
+    color: 'from-green-500 to-emerald-500'
+  },
+  {
+    name: 'WebHarvester AI',
+    description: 'An intelligent web scraping tool powered by AI to extract and process data from websites efficiently.',
+    url: 'https://github.com/Solved-Overnight/WebHarvester-AI',
+    tech: ['Python', 'AI/ML', 'Selenium', 'BeautifulSoup'],
+    color: 'from-orange-500 to-red-500'
+  },
+  {
+    name: 'Arvana Clothing',
+    description: 'A modern e-commerce platform for clothing with seamless user experience and inventory management.',
+    url: 'https://github.com/Solved-Overnight/arvana-clothing',
+    tech: ['React', 'TypeScript', 'E-commerce', 'Stripe'],
+    color: 'from-pink-500 to-rose-500'
+  }
+];
 
 const aiResponses = [
   "I'm Raph, a full-stack developer specializing in AI. I'm 21 years old and currently based in Paris, France. I work at LightOn AI where I get to work on some super cool AI projects!",
@@ -62,7 +102,7 @@ function HomePage({ onStartChat }: { onStartChat: () => void }) {
         </div>
 
         <div className="flex gap-4">
-          <button className="flex flex-col items-center gap-2 px-8 py-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors min-w-[100px]">
+          <button onClick={onStartChat} className="flex flex-col items-center gap-2 px-8 py-4 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors min-w-[100px]">
             <User className="w-5 h-5 text-blue-500" />
             <span className="text-sm font-medium">Me</span>
           </button>
@@ -112,10 +152,19 @@ function ChatPage({ onBack }: { onBack: () => void }) {
         lowerInput.includes('know more about you') ||
         lowerInput.includes('about me') ||
         lowerInput === 'me') {
-      return { text: '', isAboutMe: true };
+      return { text: '', isAboutMe: true, isProjects: false };
     }
 
-    return { text: aiResponses[Math.floor(Math.random() * aiResponses.length)], isAboutMe: false };
+    if (lowerInput.includes('project') ||
+        lowerInput.includes('work') ||
+        lowerInput.includes('portfolio') ||
+        lowerInput.includes('github') ||
+        lowerInput.includes('built') ||
+        lowerInput.includes('created')) {
+      return { text: '', isAboutMe: false, isProjects: true };
+    }
+
+    return { text: aiResponses[Math.floor(Math.random() * aiResponses.length)], isAboutMe: false, isProjects: false };
   };
 
   const handleSendMessage = async (quickQuestion?: string) => {
@@ -141,6 +190,7 @@ function ChatPage({ onBack }: { onBack: () => void }) {
         sender: 'ai',
         timestamp: new Date(),
         isAboutMe: response.isAboutMe,
+        isProjects: response.isProjects,
       };
       setMessages((prev) => [...prev, aiMessage]);
       setIsLoading(false);
@@ -204,7 +254,73 @@ function ChatPage({ onBack }: { onBack: () => void }) {
               key={message.id}
               className={`mb-6 flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              {message.isAboutMe && message.sender === 'ai' ? (
+              {message.isProjects && message.sender === 'ai' ? (
+                <div className="w-full max-w-4xl py-6">
+                  <div className="mb-8">
+                    <h2 className="text-3xl font-bold mb-2 flex items-center gap-3">
+                      <Github className="w-8 h-8" />
+                      My Projects
+                    </h2>
+                    <p className="text-gray-600">Here are some of the projects I've been working on</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {projects.map((project, index) => (
+                      <a
+                        key={index}
+                        href={project.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group relative bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden"
+                      >
+                        <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${project.color}`}></div>
+
+                        <div className="flex items-start justify-between mb-4">
+                          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${project.color} flex items-center justify-center text-white font-bold text-lg shadow-lg`}>
+                            {project.name.charAt(0)}
+                          </div>
+                          <ExternalLink className="w-5 h-5 text-gray-400 group-hover:text-gray-700 transition-colors" />
+                        </div>
+
+                        <h3 className="text-xl font-bold mb-2 group-hover:text-blue-600 transition-colors">{project.name}</h3>
+                        <p className="text-gray-600 text-sm leading-relaxed mb-4">{project.description}</p>
+
+                        <div className="flex flex-wrap gap-2">
+                          {project.tech.map((tech, techIndex) => (
+                            <span
+                              key={techIndex}
+                              className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium"
+                            >
+                              {tech}
+                            </span>
+                          ))}
+                        </div>
+
+                        <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-gray-500 text-sm">
+                            <Github className="w-4 h-4" />
+                            <span>View on GitHub</span>
+                          </div>
+                          <Star className="w-4 h-4 text-gray-400 group-hover:text-yellow-500 transition-colors" />
+                        </div>
+                      </a>
+                    ))}
+                  </div>
+
+                  <div className="mt-8 text-center">
+                    <a
+                      href="https://github.com/Solved-Overnight"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-gray-900 text-white rounded-xl hover:bg-gray-800 transition-colors font-medium"
+                    >
+                      <Github className="w-5 h-5" />
+                      View all projects on GitHub
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
+                  </div>
+                </div>
+              ) : message.isAboutMe && message.sender === 'ai' ? (
                 <div className="w-full max-w-4xl py-6">
                   <div className="flex gap-8 mb-8">
                     <div className="flex-shrink-0">
@@ -301,7 +417,7 @@ function ChatPage({ onBack }: { onBack: () => void }) {
               </div>
               <span className="text-xs font-medium whitespace-nowrap">Me</span>
             </button>
-            <button className="group flex flex-row items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-300 hover:shadow-md hover:border-gray-300">
+            <button onClick={() => handleSendMessage('Show me your projects')} className="group flex flex-row items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition-all duration-300 hover:shadow-md hover:border-gray-300">
               <div className="w-5 h-5 rounded-md bg-green-50 flex items-center justify-center transition-transform duration-300 group-hover:rotate-12">
                 <FolderKanban className="w-3 h-3 text-green-500" />
               </div>
